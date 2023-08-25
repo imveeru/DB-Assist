@@ -66,28 +66,48 @@ from langchain.llms import VertexAI
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
-from langchain.agents import AgentExecutor
 from langchain.agents.agent_types import AgentType
-from langchain.chat_models import ChatVertexAI
-
-llm=VertexAI()
+from vertexai.language_models import CodeGenerationModel
 
 st.title("🗄️DB Assist")
 
-choice=st.radio(["General Queries","DB Specific Queries"])
+choice=st.radio("",options=["General Queries","DB Specific Queries"],horizontal=True)
 
 if choice=="DB Specific Queries":
+    llm=VertexAI(max_output_tokens=1024)
     db_file=st.text_input("Enter the URI of the database...")
-    db = SQLDatabase.from_uri("sqlite:///E:\DB-Assist\chinook.db")   
-    toolkit = SQLDatabaseToolkit(db=db, llm=VertexAI())
+    if st.button("Generate"):
+        #sqlite:///E:\DB-Assist\chinook.db
+        db = SQLDatabase.from_uri(db_file)   
+        toolkit = SQLDatabaseToolkit(db=db, llm=VertexAI())
 
-    agent_executor = create_sql_agent(
-        llm=VertexAI(),
-        toolkit=toolkit,
-        verbose=True,
-        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    )
+        agent_executor = create_sql_agent(
+            llm=llm,
+            toolkit=toolkit,
+            verbose=True,
+            agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        )
 
-    res=agent_executor.run("Describe the employee table.")
+        prompt=st.text_input("Enter your query")
+        if prompt:
+            with st.spinner("Generating code..."):
+                res=agent_executor.run("Describe the employee table.")
 
-    st.markdown(res)
+                st.markdown(res.text)
+
+elif choice=="General Queries":
+    prompt=st.text_input("Enter your query")
+    
+    parameters = {
+    "max_output_tokens": 1024,
+    "temperature": 0.2
+    }
+    model = CodeGenerationModel.from_pretrained("code-bison@001")
+    if prompt:
+        with st.spinner("Generating code..."):
+            response = model.predict(
+                prefix = prompt,
+                **parameters
+            )
+            
+            st.markdown(response.text)
